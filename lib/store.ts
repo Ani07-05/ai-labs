@@ -6,11 +6,18 @@ interface PlayerData {
   hintsUsed: Record<number, number>;
 }
 
-// Vercel's Upstash marketplace integration sets KV_REST_API_URL/TOKEN
-// (the legacy Vercel KV naming), while a standalone Upstash account uses
-// UPSTASH_REDIS_REST_URL/TOKEN. Support both so either setup works.
-const redisUrl = process.env.KV_REST_API_URL ?? process.env.UPSTASH_REDIS_REST_URL;
-const redisToken = process.env.KV_REST_API_TOKEN ?? process.env.UPSTASH_REDIS_REST_TOKEN;
+// The Vercel Upstash marketplace integration can land under several env
+// var names depending on how it was connected: the legacy Vercel KV naming,
+// a plain Upstash account's naming, or a custom prefix applied on top of
+// the legacy names (which is what this project ended up with). Check all.
+const redisUrl =
+  process.env.KV_REST_API_URL ??
+  process.env.UPSTASH_REDIS_REST_URL ??
+  process.env.UPSTASH_REDIS_REST_KV_REST_API_URL;
+const redisToken =
+  process.env.KV_REST_API_TOKEN ??
+  process.env.UPSTASH_REDIS_REST_TOKEN ??
+  process.env.UPSTASH_REDIS_REST_KV_REST_API_TOKEN;
 const redis = redisUrl && redisToken ? new Redis({ url: redisUrl, token: redisToken }) : null;
 
 // In-memory fallback for local dev without Redis configured. Resets on
