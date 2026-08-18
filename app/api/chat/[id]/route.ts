@@ -22,7 +22,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   if (body.hint) {
     const name = body.name || "anonymous";
-    const used = useHint(name, labId);
+    const used = await useHint(name, labId);
     const hint = lab.hints[Math.min(used - 1, lab.hints.length - 1)];
     return NextResponse.json({ hint });
   }

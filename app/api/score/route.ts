@@ -3,7 +3,7 @@ import { getLab, hintCost } from "@/lib/labs";
 import { submitSolve, getLeaderboard } from "@/lib/store";
 
 export async function GET() {
-  return NextResponse.json({ leaderboard: getLeaderboard() });
+  return NextResponse.json({ leaderboard: await getLeaderboard() });
 }
 
 export async function POST(req: NextRequest) {
@@ -17,6 +17,6 @@ export async function POST(req: NextRequest) {
   if (!lab) {
     return NextResponse.json({ error: "Unknown lab" }, { status: 404 });
   }
-  const result = submitSolve(name, labId, lab.points, hintCost(lab.points));
-  return NextResponse.json({ ...result, leaderboard: getLeaderboard() });
+  const result = await submitSolve(name, labId, lab.points, hintCost(lab.points));
+  return NextResponse.json({ ...result, leaderboard: await getLeaderboard() });
 }

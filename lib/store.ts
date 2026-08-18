@@ -1,42 +1,82 @@
-interface PlayerState {
+import { Redis } from "@upstash/redis";
+
+interface PlayerData {
   points: number;
-  solved: Set<number>;
+  solved: number[];
   hintsUsed: Record<number, number>;
 }
 
-// In-memory store for a single live session. Resets on server restart.
-// That's intentional: this is a one-day event, not a persistent product.
-const players = new Map<string, PlayerState>();
+const redis =
+  process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
+    ? Redis.fromEnv()
+    : null;
 
-function getOrCreate(name: string): PlayerState {
-  let p = players.get(name);
-  if (!p) {
-    p = { points: 0, solved: new Set(), hintsUsed: {} };
-    players.set(name, p);
-  }
-  return p;
+// In-memory fallback for local dev without Redis configured. Resets on
+// server restart, which is fine for a single local session but not for
+// a serverless deployment with multiple concurrent function instances,
+// which is why Redis is used whenever it's configured.
+const memory = new Map<string, PlayerData>();
+const AGENTS_SET = "agents";
+
+function emptyPlayer(): PlayerData {
+  return { points: 0, solved: [], hintsUsed: {} };
 }
 
-export function useHint(name: string, labId: number) {
-  const p = getOrCreate(name);
-  p.hintsUsed[labId] = (p.hintsUsed[labId] ?? 0) + 1;
-  return p.hintsUsed[labId];
+async function getPlayer(name: string): Promise<PlayerData> {
+  if (redis) {
+    const data = await redis.get<PlayerData>(`player:${name}`);
+    return data ?? emptyPlayer();
+  }
+  return memory.get(name) ?? emptyPlayer();
 }
 
-export function submitSolve(name: string, labId: number, basePoints: number, hintCostEach: number) {
-  const p = getOrCreate(name);
-  if (p.solved.has(labId)) {
-    return { alreadySolved: true, points: p.points };
+async function savePlayer(name: string, data: PlayerData) {
+  if (redis) {
+    await redis.set(`player:${name}`, data);
+    await redis.sadd(AGENTS_SET, name);
+    return;
   }
-  const hints = p.hintsUsed[labId] ?? 0;
+  memory.set(name, data);
+}
+
+export async function useHint(name: string, labId: number): Promise<number> {
+  const player = await getPlayer(name);
+  player.hintsUsed[labId] = (player.hintsUsed[labId] ?? 0) + 1;
+  await savePlayer(name, player);
+  return player.hintsUsed[labId];
+}
+
+export async function submitSolve(
+  name: string,
+  labId: number,
+  basePoints: number,
+  hintCostEach: number
+) {
+  const player = await getPlayer(name);
+  if (player.solved.includes(labId)) {
+    return { alreadySolved: true, points: player.points };
+  }
+  const hints = player.hintsUsed[labId] ?? 0;
   const awarded = Math.max(Math.floor(basePoints / 2), basePoints - hints * hintCostEach);
-  p.solved.add(labId);
-  p.points += awarded;
-  return { alreadySolved: false, points: p.points, awarded };
+  player.solved.push(labId);
+  player.points += awarded;
+  await savePlayer(name, player);
+  return { alreadySolved: false, points: player.points, awarded };
 }
 
-export function getLeaderboard() {
-  return Array.from(players.entries())
-    .map(([name, p]) => ({ name, points: p.points, solvedCount: p.solved.size }))
+export async function getLeaderboard() {
+  if (redis) {
+    const names = await redis.smembers(AGENTS_SET);
+    if (names.length === 0) return [];
+    const players = await Promise.all(names.map((n) => redis.get<PlayerData>(`player:${n}`)));
+    return names
+      .map((name, i) => {
+        const p = players[i];
+        return { name, points: p?.points ?? 0, solvedCount: p?.solved.length ?? 0 };
+      })
+      .sort((a, b) => b.points - a.points);
+  }
+  return Array.from(memory.entries())
+    .map(([name, p]) => ({ name, points: p.points, solvedCount: p.solved.length }))
     .sort((a, b) => b.points - a.points);
 }
