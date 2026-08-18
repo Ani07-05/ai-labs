@@ -1,26 +1,121 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --paper: #ede3c8;
+  --paper-dark: #e2d5ae;
+  --ink: #2b2620;
+  --ink-soft: #5a5142;
+  --folder: #c9a86a;
+  --folder-dark: #a9824a;
+  --stamp-red: #a3352b;
+  --stamp-red-soft: #c65c4f;
+  --olive: #5f6a3f;
+  --redact: #22201c;
+  --card: #f4ecd6;
+  --shadow: rgba(43, 38, 32, 0.28);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-paper: var(--paper);
+  --color-ink: var(--ink);
+  --font-display: var(--font-display);
+  --font-body: var(--font-body);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body), Georgia, serif;
+  background-image:
+    radial-gradient(rgba(43, 38, 32, 0.05) 1px, transparent 1px),
+    linear-gradient(180deg, var(--paper) 0%, var(--paper-dark) 100%);
+  background-size: 3px 3px, 100% 100%;
+}
+
+h1, h2, h3, .font-display {
+  font-family: var(--font-display), "Courier New", monospace;
+  letter-spacing: 0.02em;
+}
+
+/* Rubber stamp, tilted, used for the success state and section labels */
+.stamp {
+  display: inline-block;
+  font-family: var(--font-display), monospace;
+  color: var(--stamp-red);
+  border: 3px solid var(--stamp-red);
+  border-radius: 4px;
+  padding: 0.35rem 0.9rem;
+  transform: rotate(-4deg);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  background: color-mix(in srgb, var(--stamp-red) 6%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--stamp-red) 40%, transparent) inset;
+}
+
+@keyframes stamp-slam {
+  0% { transform: rotate(-4deg) scale(2.4); opacity: 0; }
+  60% { transform: rotate(-4deg) scale(0.92); opacity: 1; }
+  100% { transform: rotate(-4deg) scale(1); opacity: 1; }
+}
+.stamp-animate {
+  animation: stamp-slam 0.4s cubic-bezier(0.2, 0.8, 0.3, 1.2);
+}
+
+/* Folder tab, used for lab tier and OWASP tags instead of generic pills */
+.tab {
+  display: inline-block;
+  font-family: var(--font-display), monospace;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 0.25rem 0.6rem;
+  background: var(--folder);
+  color: var(--ink);
+  border-radius: 3px 3px 0 0;
+  box-shadow: 0 2px 0 var(--folder-dark);
+}
+
+/* A manila case-file card, replaces bordered white cards */
+.case-card {
+  background: var(--card);
+  border-radius: 2px;
+  box-shadow: 0 6px 14px var(--shadow), 0 1px 0 var(--folder-dark);
+  position: relative;
+}
+.case-card::before {
+  content: "";
+  position: absolute;
+  top: -6px;
+  left: 18px;
+  width: 34px;
+  height: 12px;
+  background: var(--folder);
+  border-radius: 2px 2px 0 0;
+}
+
+/* Redaction bar, used to hide the answer until a hint/success reveals it */
+.redact {
+  background: var(--redact);
+  color: transparent;
+  border-radius: 2px;
+  padding: 0 0.3rem;
+  user-select: none;
+}
+
+.paperclip {
+  position: absolute;
+  top: -10px;
+  right: 16px;
+  width: 18px;
+  height: 40px;
+  border: 3px solid #8b8b8b;
+  border-radius: 9px;
+  border-bottom: none;
+  opacity: 0.8;
+  transform: rotate(8deg);
+}
+
+::selection {
+  background: var(--stamp-red-soft);
+  color: var(--paper);
 }
