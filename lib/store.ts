@@ -73,6 +73,20 @@ export async function submitSolve(
   return { alreadySolved: false, points: player.points, awarded };
 }
 
+export async function resetLeaderboard() {
+  if (redis) {
+    const names = await redis.smembers(AGENTS_SET);
+    if (names.length > 0) {
+      await redis.del(...names.map((n) => `player:${n}`));
+    }
+    await redis.del(AGENTS_SET);
+    return names;
+  }
+  const names = Array.from(memory.keys());
+  memory.clear();
+  return names;
+}
+
 export async function getLeaderboard() {
   if (redis) {
     const names = await redis.smembers(AGENTS_SET);
