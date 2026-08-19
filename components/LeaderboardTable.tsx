@@ -7,6 +7,7 @@ interface Row {
   name: string;
   points: number;
   solvedCount: number;
+  lastSolveAt?: number;
 }
 
 export default function LeaderboardTable() {
@@ -48,6 +49,9 @@ export default function LeaderboardTable() {
             <th className="px-4 py-3 font-normal" style={{ color: "var(--ink)" }}>
               Cases closed
             </th>
+            <th className="px-4 py-3 font-normal" style={{ color: "var(--ink)" }}>
+              Last solve
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -67,6 +71,9 @@ export default function LeaderboardTable() {
               </td>
               <td className="px-4 py-3" style={{ color: "var(--ink-soft)" }}>
                 {r.solvedCount} of {LABS.length}
+              </td>
+              <td className="px-4 py-3" style={{ color: "var(--ink-soft)" }}>
+                {r.lastSolveAt ? new Date(r.lastSolveAt).toLocaleTimeString() : "—"}
               </td>
             </tr>
           ))}

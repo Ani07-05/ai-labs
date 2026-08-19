@@ -4,6 +4,7 @@ interface PlayerData {
   points: number;
   solved: number[];
   hintsUsed: Record<number, number>;
+  lastSolveAt?: number; // ms epoch of most recent solve, used to tiebreak equal-points rankings
 }
 
 // The Vercel Upstash marketplace integration can land under several env
@@ -69,6 +70,7 @@ export async function submitSolve(
   const awarded = Math.max(Math.floor(basePoints / 2), basePoints - hints * hintCostEach);
   player.solved.push(labId);
   player.points += awarded;
+  player.lastSolveAt = Date.now();
   await savePlayer(name, player);
   return { alreadySolved: false, points: player.points, awarded };
 }
@@ -87,19 +89,40 @@ export async function resetLeaderboard() {
   return names;
 }
 
+// Ties on points are broken by who reached that total first (earlier lastSolveAt wins),
+// since points alone give no way to separate players tied at the same score.
+function rankLeaderboard(
+  rows: { name: string; points: number; solvedCount: number; lastSolveAt?: number }[]
+) {
+  return rows.sort((a, b) => {
+    if (b.points !== a.points) return b.points - a.points;
+    return (a.lastSolveAt ?? Infinity) - (b.lastSolveAt ?? Infinity);
+  });
+}
+
 export async function getLeaderboard() {
   if (redis) {
     const names = await redis.smembers(AGENTS_SET);
     if (names.length === 0) return [];
     const players = await Promise.all(names.map((n) => redis.get<PlayerData>(`player:${n}`)));
-    return names
-      .map((name, i) => {
+    return rankLeaderboard(
+      names.map((name, i) => {
         const p = players[i];
-        return { name, points: p?.points ?? 0, solvedCount: p?.solved.length ?? 0 };
+        return {
+          name,
+          points: p?.points ?? 0,
+          solvedCount: p?.solved.length ?? 0,
+          lastSolveAt: p?.lastSolveAt,
+        };
       })
-      .sort((a, b) => b.points - a.points);
+    );
   }
-  return Array.from(memory.entries())
-    .map(([name, p]) => ({ name, points: p.points, solvedCount: p.solved.length }))
-    .sort((a, b) => b.points - a.points);
+  return rankLeaderboard(
+    Array.from(memory.entries()).map(([name, p]) => ({
+      name,
+      points: p.points,
+      solvedCount: p.solved.length,
+      lastSolveAt: p.lastSolveAt,
+    }))
+  );
 }
