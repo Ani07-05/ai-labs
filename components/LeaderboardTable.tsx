@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { LABS } from "@/lib/labs";
 
 interface Row {
   name: string;
@@ -65,7 +66,7 @@ export default function LeaderboardTable() {
                 {r.points}
               </td>
               <td className="px-4 py-3" style={{ color: "var(--ink-soft)" }}>
-                {r.solvedCount} of 8
+                {r.solvedCount} of {LABS.length}
               </td>
             </tr>
           ))}
