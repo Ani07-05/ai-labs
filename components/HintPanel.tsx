@@ -2,7 +2,15 @@
 
 import { useState } from "react";
 
-export default function HintPanel({ labId, name }: { labId: number; name: string }) {
+export default function HintPanel({
+  labId,
+  name,
+  stage,
+}: {
+  labId: number;
+  name: string;
+  stage?: number;
+}) {
   const [hints, setHints] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -12,7 +20,7 @@ export default function HintPanel({ labId, name }: { labId: number; name: string
       const res = await fetch(`/api/chat/${labId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ hint: true, name: name || "anonymous" }),
+        body: JSON.stringify({ hint: true, name: name || "anonymous", stage }),
       });
       const data = await res.json();
       setHints((h) => [...h, data.hint]);

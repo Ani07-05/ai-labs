@@ -8,6 +8,7 @@ export default function Home() {
   const { name, setName } = useName();
   const core = LABS.filter((l) => l.tier === "core");
   const bonus = LABS.filter((l) => l.tier === "bonus");
+  const hard = LABS.filter((l) => l.tier === "hard");
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-12">
@@ -18,9 +19,11 @@ export default function Home() {
             AI Security Labs
           </h1>
           <p className="mt-3 max-w-lg text-[15px] leading-relaxed" style={{ color: "var(--ink-soft)" }}>
-            Eight case files. Eight AI chatbots, each with a secret it was told to keep.
+            Twelve case files. Twelve AI chatbots, each with a secret it was told to keep.
             No coding required. Your job is to talk your way past the guardrail and see
-            exactly why it failed.
+            exactly why it failed. The hard cases have already been patched against the
+            obvious tricks, so the classic prompts other people throw at Gemini and GPT
+            agents won&apos;t work here.
           </p>
         </div>
         <div className="stamp mt-2 shrink-0">Eyes Only</div>
@@ -55,6 +58,11 @@ export default function Home() {
 
       <Section title="Core case files" note="Work through these in order." labs={core} />
       <Section title="Bonus case files" note="Finished early? These are worth more." labs={bonus} />
+      <Section
+        title="Hard case files"
+        note="These bots have been patched against the tricks used above. Single-shot jailbreak prompts won't cut it."
+        labs={hard}
+      />
     </div>
   );
 }

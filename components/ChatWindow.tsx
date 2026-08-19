@@ -12,8 +12,12 @@ interface Message {
 
 export default function ChatWindow({ lab }: { lab: PublicLab }) {
   const { name } = useName();
+  const stages = lab.stages;
+  const [stage, setStage] = useState(0);
+  const currentStage = stages?.[stage];
+  const initialInput = currentStage?.seedUserMessage ?? lab.seedUserMessage ?? "";
   const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState(lab.seedUserMessage ?? "");
+  const [input, setInput] = useState(initialInput);
   const [loading, setLoading] = useState(false);
   const [won, setWon] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -24,17 +28,34 @@ export default function ChatWindow({ lab }: { lab: PublicLab }) {
     const userMsg: Message = { role: "user", content: input };
     const nextMessages = [...messages, userMsg];
     setMessages(nextMessages);
-    setInput(lab.seedUserMessage ?? "");
+    setInput(currentStage?.seedUserMessage ?? lab.seedUserMessage ?? "");
     setLoading(true);
 
     try {
       const res = await fetch(`/api/chat/${lab.id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: userMsg.content, history: nextMessages, name }),
+        body: JSON.stringify({ message: userMsg.content, history: nextMessages, name, stage }),
       });
       const data = await res.json();
-      setMessages([...nextMessages, { role: "assistant", content: data.reply }]);
+      const replyMsg: Message = { role: "assistant", content: data.reply };
+
+      if (data.stageWon && stages && !data.isFinalStage) {
+        const nextIdx = stage + 1;
+        const nextStage = stages[nextIdx];
+        setMessages([
+          ...nextMessages,
+          replyMsg,
+          {
+            role: "assistant",
+            content: `— Stage ${stage + 1} cleared. Moving to "${nextStage.title}". —`,
+          },
+        ]);
+        setStage(nextIdx);
+        setInput(nextStage.seedUserMessage ?? "");
+      } else {
+        setMessages([...nextMessages, replyMsg]);
+      }
       if (data.won) setWon(true);
     } catch {
       setMessages([
@@ -60,6 +81,17 @@ export default function ChatWindow({ lab }: { lab: PublicLab }) {
 
   return (
     <div className="flex flex-col gap-4">
+      {currentStage && (
+        <div className="case-card p-4" style={{ borderLeft: "4px solid var(--olive)" }}>
+          <span className="text-xs uppercase tracking-wide" style={{ color: "var(--ink-soft)" }}>
+            {currentStage.title} · Stage {stage + 1} of {stages!.length}
+          </span>
+          <p className="mt-1 text-sm leading-relaxed" style={{ color: "var(--ink)" }}>
+            {currentStage.scenario}
+          </p>
+        </div>
+      )}
+
       <div
         className="case-card flex h-[420px] flex-col gap-3 overflow-y-auto p-4"
         style={{ background: "var(--paper-dark)" }}
@@ -134,7 +166,7 @@ export default function ChatWindow({ lab }: { lab: PublicLab }) {
         </button>
       </div>
 
-      <HintPanel labId={lab.id} name={name} />
+      <HintPanel key={stage} labId={lab.id} name={name} stage={stage} />
     </div>
   );
 }

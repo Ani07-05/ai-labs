@@ -8,6 +8,7 @@ interface ChatBody {
   history?: { role: "user" | "assistant"; content: string }[];
   hint?: boolean;
   name?: string;
+  stage?: number;
 }
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -20,18 +21,28 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const body: ChatBody = await req.json();
 
+  // For multi-stage labs, everything (system prompt, secret, hints) comes from the
+  // stage currently in progress, not the lab-level placeholders.
+  const stageIdx = lab.stages ? Math.min(Math.max(body.stage ?? 0, 0), lab.stages.length - 1) : 0;
+  const stage = lab.stages?.[stageIdx];
+  const isFinalStage = !lab.stages || stageIdx === lab.stages.length - 1;
+
   if (body.hint) {
     const name = body.name || "anonymous";
-    const used = await useHint(name, labId);
-    const hint = lab.hints[Math.min(used - 1, lab.hints.length - 1)];
+    // Composite key so hint usage/cost is tracked per stage, not shared across the whole lab.
+    const hintKey = lab.stages ? labId * 100 + stageIdx : labId;
+    const hintsPool = stage ? stage.hints : lab.hints;
+    const used = await useHint(name, hintKey);
+    const hint = hintsPool[Math.min(used - 1, hintsPool.length - 1)];
     return NextResponse.json({ hint });
   }
 
   const userMessage = (body.message ?? "").slice(0, 2000);
   const history = (body.history ?? []).slice(-10);
 
+  const systemPrompt = stage ? stage.systemPrompt : lab.systemPrompt;
   const messages = [
-    { role: "system" as const, content: lab.systemPrompt },
+    { role: "system" as const, content: systemPrompt },
     ...history,
     { role: "user" as const, content: userMessage },
   ];
@@ -40,15 +51,25 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   let usedFallback = false;
   if (reply === null) {
     usedFallback = true;
-    const pool = lab.fallbackReplies;
+    const pool = stage?.fallbackReplies ?? lab.fallbackReplies;
     reply = pool[Math.floor(Math.random() * pool.length)];
   }
 
-  const secrets = Array.isArray(lab.secret) ? lab.secret : [lab.secret];
+  const secretSource = stage ? stage.secret : lab.secret;
+  const secrets = Array.isArray(secretSource) ? secretSource : [secretSource];
   const normalizedReply = normalize(reply);
-  const won = secrets.every((s) => normalizedReply.includes(normalize(s)));
+  const stageWon = secrets.every((s) => normalizedReply.includes(normalize(s)));
+  const won = stageWon && isFinalStage;
 
-  return NextResponse.json({ reply, won, usedFallback });
+  return NextResponse.json({
+    reply,
+    won,
+    usedFallback,
+    stageWon,
+    stageIndex: stageIdx,
+    isFinalStage,
+    stageCount: lab.stages?.length,
+  });
 }
 
 // LLMs often substitute typographic lookalikes (non-breaking hyphen, en/em dash,

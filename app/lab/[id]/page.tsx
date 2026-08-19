@@ -17,7 +17,14 @@ export default async function LabPage({ params }: { params: Promise<{ id: string
       </Link>
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
-        <span className="tab">{publicLab.tier === "core" ? "Core case" : "Bonus case"}</span>
+        <span className="tab">
+          {publicLab.tier === "core" ? "Core case" : publicLab.tier === "bonus" ? "Bonus case" : "Hard case"}
+        </span>
+        {publicLab.stages && (
+          <span className="tab" style={{ background: "var(--stamp-red)", color: "var(--paper)" }}>
+            {publicLab.stages.length}-stage
+          </span>
+        )}
         <span className="tab" style={{ background: "var(--ink-soft)", color: "var(--paper)" }}>
           {publicLab.owasp}
         </span>
