@@ -18,7 +18,9 @@ export async function GET() {
       body: JSON.stringify({
         model: "openai/gpt-oss-20b",
         messages: [{ role: "user", content: "say hi" }],
-        max_tokens: 10,
+        temperature: 0.7,
+        max_tokens: 400,
+        reasoning_effort: "low",
       }),
     });
     const text = await res.text();
