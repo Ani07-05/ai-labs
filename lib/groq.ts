@@ -34,7 +34,9 @@ export async function callGroq(messages: ChatMessage[]): Promise<string | null> 
     if (!res.ok) return null;
     const data = await res.json();
     const content: string | undefined = data?.choices?.[0]?.message?.content;
-    return content ?? null;
+    // A reasoning model can burn its whole token budget on the hidden "reasoning"
+    // field and return empty content; treat that the same as a failed call.
+    return content && content.trim() ? content : null;
   } catch {
     return null;
   }

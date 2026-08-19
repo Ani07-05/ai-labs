@@ -73,6 +73,42 @@ export async function submitSolve(
   return { alreadySolved: false, points: player.points, awarded };
 }
 
+// Removes solves (and the points they awarded) for the given lab ids from every
+// player, e.g. to undo credit gained while a lab was accidentally trivial.
+export async function revokeSolves(
+  labIds: number[],
+  pointsById: Record<number, number>,
+  hintCostById: Record<number, number>
+) {
+  const names = redis ? await redis.smembers(AGENTS_SET) : Array.from(memory.keys());
+  const affected: { name: string; removed: number[]; pointsDeducted: number }[] = [];
+
+  for (const name of names) {
+    const player = await getPlayer(name);
+    const removed: number[] = [];
+    let pointsDeducted = 0;
+
+    for (const labId of labIds) {
+      if (!player.solved.includes(labId)) continue;
+      const hints = player.hintsUsed[labId] ?? 0;
+      const basePoints = pointsById[labId] ?? 0;
+      const hintCostEach = hintCostById[labId] ?? 0;
+      const awarded = Math.max(Math.floor(basePoints / 2), basePoints - hints * hintCostEach);
+      player.solved = player.solved.filter((id) => id !== labId);
+      player.points = Math.max(0, player.points - awarded);
+      removed.push(labId);
+      pointsDeducted += awarded;
+    }
+
+    if (removed.length > 0) {
+      await savePlayer(name, player);
+      affected.push({ name, removed, pointsDeducted });
+    }
+  }
+
+  return affected;
+}
+
 export async function resetLeaderboard() {
   if (redis) {
     const names = await redis.smembers(AGENTS_SET);

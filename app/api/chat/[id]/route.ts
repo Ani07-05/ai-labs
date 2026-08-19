@@ -47,22 +47,26 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     { role: "user" as const, content: userMessage },
   ];
 
-  let reply = await callGroq(messages);
-  let usedFallback = false;
-  if (reply === null) {
-    usedFallback = true;
-    const pool = stage?.fallbackReplies ?? lab.fallbackReplies;
-    reply = pool[Math.floor(Math.random() * pool.length)];
-  }
+  const reply = await callGroq(messages);
+  const usedFallback = reply === null;
 
-  const secretSource = stage ? stage.secret : lab.secret;
-  const secrets = Array.isArray(secretSource) ? secretSource : [secretSource];
-  const normalizedReply = normalize(reply);
-  const stageWon = secrets.every((s) => normalizedReply.includes(normalize(s)));
+  // Never award a win off a fallback reply: those are static/random text, not the
+  // bot actually being talked into it, and some are written to sound like a partial
+  // confession for flavor, which would otherwise let anyone "solve" a lab just by
+  // catching Groq down.
+  let stageWon = false;
+  if (!usedFallback) {
+    const secretSource = stage ? stage.secret : lab.secret;
+    const secrets = Array.isArray(secretSource) ? secretSource : [secretSource];
+    const normalizedReply = normalize(reply);
+    stageWon = secrets.every((s) => normalizedReply.includes(normalize(s)));
+  }
   const won = stageWon && isFinalStage;
 
   return NextResponse.json({
-    reply,
+    reply: usedFallback
+      ? "(the line's noisy right now, the bot didn't catch that, try sending it again in a moment)"
+      : reply,
     won,
     usedFallback,
     stageWon,
