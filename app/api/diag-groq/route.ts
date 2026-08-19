@@ -28,7 +28,7 @@ export async function GET() {
       keyPresent: true,
       keyLength: apiKey.length,
       status: res.status,
-      body: text.slice(0, 500),
+      body: text.slice(0, 2000),
     });
   } catch (err) {
     return NextResponse.json({
